@@ -134,7 +134,8 @@ size_t block_store_read(const block_store_t *const bs, const size_t block_id, vo
     if (bs && bs->fbm && bs->data_blocks && BLOCKID_VALID(block_id)
             && buffer && nbytes && (nbytes + offset <= BLOCK_SIZE)) {
         // Not going to forbid reading of not-in-use blocks (but we'll log it via errno)
-        memcpy(buffer, bs->data_blocks + offset, nbytes);
+        size_t total_offset = offset + (BLOCK_SIZE * (block_id - FBM_SIZE));
+        memcpy(buffer, bs->data_blocks + total_offset, nbytes);
         block_store_errno = bitmap_test(bs->fbm, block_id) ? BS_OK : BS_FBM_REQUEST_MISMATCH;
         return nbytes;
     }
