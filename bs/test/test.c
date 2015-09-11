@@ -1,44 +1,313 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include "../src/block_store.c"
 // including the .c lets's us see the inner working and test things easier
 // than if we were using the public interface
 // (you can only see inside the struct if you do it this way)
 
-int main() {
-	puts("Place your test code here!");
+#define assert(e) ((e) ? (true) : \
+                   (fprintf(stderr,"%s,%d: assertion '%s' failed\n",__FILE__, __LINE__, #e), \
+                    fflush(stdout), abort()))
+
+// I'm not typing that out 5 million times.
+// Change this in V2.
+#define bs_errno block_store_errno
 
 /*
-	// assumes generated drive at
-	const char *const file = "test.bs";
 
-	block_store_t *bs = block_store_import(file);
-	if (bs) {
-		size_t our_block = block_store_allocate(bs);
-		if (our_block) {
-			size_t write_res = block_store_write(bs,our_block, file, 8, 0);
-			if (write_res){
-				size_t save_res = block_store_export(bs,file);
-				if (save_res){
-					puts(block_store_strerror(block_store_errno));
-					puts("WOO HOO!");
-				} else {
-					puts(block_store_strerror(block_store_errno));
-					puts("AHHH DID NOT EXPORT >:C");
-				}
-			} else {
-				puts(block_store_strerror(block_store_errno));
-				puts("AHH DID NOT WRITE");
-			}
+    block_store_t *block_store_create();
+    1. NORMAL. Assert all contents and errno
+    ... that's it, we can't do more without a better testing system
 
-		} else {
-			puts(block_store_strerror(block_store_errno));
-			puts("AHHH NO BLOCK");
-		}
-	} else {
-		puts(block_store_strerror(block_store_errno));
-		puts("AHHHH DID NOT INIT");
-	}
+    void block_store_destroy(block_store_t *const bs);
+    1. NORMAL
+    2. FAIL, null bs. Assert we don't crash and bs_errno is set
+
+    size_t block_store_allocate(block_store_t *const bs);
+    1. NORMAL, Assert can allocate all blocks, check errno and fbm, dbm
+    2. FAIL, Fail on full, check errno
+    3. FAIL, null bs, check errno
+
+    size_t block_store_release(block_store_t *const bs, const size_t block_id);
+    1. NORMAl, assert FBM/DBM and errno
+    2. FAIL, reserved block, assert fbm/sbm/errno
+    3. FAIL, null bs, assert errno
+
+    size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer, const size_t nbytes, const size_t offset);
+    1. NORMAL, assert arbitrary read contents, check errno
+    2. NORMAL, non-allocated block, check errno
+    3. NORMAL, full block read
+    4. FAIL, full+1 block read
+    5. FAIL, zero nbytes
+    6. FAIL, offset at end & zero nbytes
+    7. FAIL, offset > size
+    8. FAIL, offset + nbytes > size
+    9. FAIL, null bs
+    10. FAIL, null buffer
+
+    size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer, const size_t nbytes, const size_t offset);
+    See read
+
+    block_store_t *block_store_import(const char *const filename);
+    1. NORMAL
+    2. FAIL, file does not exist
+    3. FAIL, bad filename
+    4. FAIL, null filename
+    5. FAIL, bad file size
+
+    size_t block_store_export(const block_store_t *const bs, const char *const filename);
+    1. NORMAL
+    2. FAIL, bad filename (...? is that a thing?)
+    3. FAIL, NULL filename
+    4. FAIL, null bs
+
 */
+
+// ALLOCATE RELEASE CREATE DESTROY
+void basic_tests_a();
+
+// IMPORT EXPORT
+void basic_tests_b();
+
+// READ WRITE
+void basic_tests_c();
+
+int main() {
+
+    puts("Place your test code here!");
+
+
+
+
+    puts("Running autotests, sit back and relax, it'll be awhile...");
+
+    basic_tests_a();
+
+    puts("A tests passed...");
+
+    // (actually, nevermind, we'll create them)
+
+    // Requires file tests.bs exists as standard empty test drive
+    // Requires file bad.bs exists as any file smaller than drive size
+    //   (just touching bad.bs should be fine)
+    // Requires file DOESNOTEXIST.bs does not exist
+
+    basic_tests_b();
+
+    puts("B tests passed...");
+
+    puts("TESTS COMPLETE");
+
+
+}
+
+void basic_tests_a() {
+
+    block_store_t *bs_a = NULL;
+
+    // CREATE 1
+    // ALLOCATE 1 2
+    // RELEASE 1 2
+
+    // Check valid creation (can't test a failed one without breaking selectively breaking malloc)
+    assert(bs_a = block_store_create());
+    assert(bs_errno == BS_OK);
+
+    // assert dbm, fbm, and fd
+
+    // assert(bs_a->fd == 0); Whoops, V2
+
+    for (size_t i = 0; i < FBM_SIZE; ++i) {
+        assert(bitmap_test(bs_a->fbm, i));
+        assert(bitmap_test(bs_a->dbm, i));
+    }
+
+    // ALLOCATE 1
+
+    // Check allocate up to full & fail
+    for (size_t i = 8; i < BLOCK_COUNT; ++i) {
+        assert(bitmap_test(bs_a->fbm, i) == false);
+        assert(bitmap_test(bs_a->dbm, i) == false); // CHANGE IN V2
+
+        assert(i == block_store_allocate(bs_a));
+        assert(bs_errno == BS_OK);
+
+        assert(bitmap_test(bs_a->fbm, i));
+        assert(bitmap_test(bs_a->dbm, i) == false); // CHANGE IN V2
+    }
+
+    // ALLOCATE 2
+
+    assert(block_store_allocate(bs_a) == 0);
+    assert(bs_errno == BS_FULL);
+
+    // Arbitrary release and reallocate
+
+    assert(block_store_release(bs_a, (BLOCK_COUNT >> 3) + 5) == ((BLOCK_COUNT >> 3) + 5));
+    assert(bs_errno == BS_OK);
+
+    assert(bitmap_test(bs_a->fbm, (BLOCK_COUNT >> 3) + 5) == false);
+    assert(bitmap_test(bs_a->dbm, (BLOCK_COUNT >> 3) + 5) == false); // CHANGE IN v2
+
+    assert(block_store_allocate(bs_a) == ((BLOCK_COUNT >> 3) + 5));
+    assert(bs_errno == BS_OK);
+
+    // Free back to empty
+
+    for (size_t i = BLOCK_COUNT; i > FBM_SIZE; --i) {
+        assert(bitmap_test(bs_a->fbm, i - 1));
+        assert(bitmap_test(bs_a->dbm, i - 1) == false); // CHANGE IN V2
+
+        assert(i - 1 == block_store_release(bs_a, i - 1));
+        assert(bs_errno == BS_OK);
+
+        assert(bitmap_test(bs_a->fbm, i - 1) == false);
+        assert(bitmap_test(bs_a->dbm, i - 1) == false); // CHANGE IN V2
+    }
+
+    for (size_t i = 0; i < FBM_SIZE; ++i) {
+        assert(bitmap_test(bs_a->fbm, i));
+        assert(bitmap_test(bs_a->dbm, i));
+    }
+
+    // CREATE tested and clear for use
+
+    // RELEASE 2
+    assert(block_store_release(bs_a, 0) == 0);
+    assert(bs_errno == BS_PARAM);
+
+    assert(bitmap_test(bs_a->fbm, 0));
+    assert(bitmap_test(bs_a->dbm, 0));
+
+    assert(block_store_release(bs_a, FBM_SIZE - 1) == 0);
+    assert(bs_errno == BS_PARAM);
+
+    assert(bitmap_test(bs_a->fbm, FBM_SIZE - 1));
+    assert(bitmap_test(bs_a->dbm, FBM_SIZE - 1));
+
+    // RELEASE 3
+
+    assert(block_store_release(NULL, 0) == 0);
+    assert(bs_errno == BS_PARAM);
+
+    // ALLOCATE 3
+
+    assert(0 == block_store_allocate(NULL));
+    assert(bs_errno == BS_PARAM);
+
+    // RELEASE tested and clear for use
+    // ALLOCATE tested and clear for use
+
+    // DESTROY 2
+
+    block_store_destroy(NULL);
+    assert(bs_errno == BS_PARAM);
+
+    // DESTROY 1
+
+    block_store_destroy(bs_a);
+    assert(bs_errno == BS_OK);
+
+    // DESTROY tested and clear for use
+}
+
+
+// IMPORT EXPORT
+void basic_tests_b() {
+    block_store_t *bs_a = NULL, *bs_b = NULL;
+    const char *const file = "test.bs";
+    //uint16_t arr[BLOCK_SIZE >> 1];
+
+
+    assert(0 == system("./generate_drive e test.bs"));
+    assert(0 == system("echo 4 8 15 16 23 42 > bad.bs"));
+    puts("IGNORE ME!!!");
+    assert(system("ls DOESNOTEXIST.bs"));
+
+
+    // IMPORT 1
+
+    bs_a = block_store_import(file);
+    assert(bs_a);
+    assert(bs_errno == BS_OK);
+
+    for (size_t i = 0; i < FBM_SIZE; ++i) {
+        assert(bitmap_test(bs_a->fbm, i));
+        assert(bitmap_test(bs_a->dbm, i) == false);
+    }
+
+    for (size_t i = BLOCK_COUNT; i > FBM_SIZE; --i) {
+        assert(bitmap_test(bs_a->fbm, i - 1) == false);
+        assert(bitmap_test(bs_a->dbm, i - 1) == false);
+    }
+
+    // IMPORT 2
+
+    bs_b = block_store_import("DOESNOTEXIST.bs");
+    assert(bs_b == NULL);
+    assert(bs_errno == BS_FILE_ACCESS);
+
+    // IMPORT 4
+
+    bs_b = block_store_import(NULL);
+    assert(bs_b == NULL);
+    assert(bs_errno == BS_PARAM);
+
+    // Actually not sure what will happen here...
+    // IMPORT 3
+
+    bs_b = block_store_import("\n");
+    assert(bs_b == NULL);
+    assert(bs_errno == BS_FILE_ACCESS);
+
+    bs_b = block_store_import("bad.bs");
+    assert(bs_b == NULL);
+    assert(bs_errno == BS_FILE_ACCESS);
+
+    // IMPORT tested and cleared for use
+
+    // EXPORT 1
+    size_t ret_size = block_store_export(bs_a, "new_test.bs");
+    assert(ret_size == (BLOCK_COUNT * BLOCK_SIZE));
+    assert(bs_errno == BS_OK);
+    assert(0 == system("diff test.bs new_test.bs"));
+
+    // EXPORT 2
+
+    // not sure what this will do...
+    // It makes a file with a messed up name. Hmm.
+    //assert(block_store_export(bs_a, "\n") == 0);
+    //assert(bs_errno == BS_FILE_ACCESS);
+    // WONTFIX, name sanitation isn't our problem. If the OS allows it, so should we
+
+    assert(block_store_export(bs_a, "") == 0);
+    assert(bs_errno == BS_FILE_ACCESS);
+
+    // EXPORT 3
+
+    assert(block_store_export(bs_a, NULL) == 0);
+    assert(bs_errno == BS_PARAM);
+
+    // EXPORT 4
+    assert(block_store_export(NULL, "should_not_create.bs") == 0);
+    assert(bs_errno == BS_PARAM);
+
+    block_store_destroy(bs_a);
+
+    puts("IGNORE ME!!!");
+    system("rm bad.bs should_not_create.bs new_test.bs");
+
+}
+
+
+// READ WRITE
+void basic_tests_c() {
+
+    //block_store_t *bs_a = NULL, *bs_b = NULL;
+    //const char *const file = "test.bs";
+    //uint16_t arr[BLOCK_SIZE >> 1];
+
 
 
 }
