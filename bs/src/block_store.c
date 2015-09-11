@@ -75,6 +75,7 @@ void block_store_destroy(block_store_t *const bs) {
         bs->data_blocks = NULL;
         free(bs);
         block_store_errno = BS_OK;
+        return;
     }
     block_store_errno = BS_PARAM;
 }
