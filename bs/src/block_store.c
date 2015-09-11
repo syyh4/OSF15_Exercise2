@@ -173,7 +173,7 @@ size_t block_store_export(const block_store_t *const bs, const char *const filen
     // Thankfully, this is less of a mess than import...
     // we're going to ignore dbm, we'll treat export like it's making a new copy of the drive
     if (filename && bs && bs->fbm && bs->data_blocks) {
-        const int fd = open(filename, O_WRONLY | O_TRUNC);
+        const int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT);
         if (fd != -1) {
             if (utility_write_file(fd, bitmap_export(bs->fbm), FBM_SIZE * BLOCK_SIZE) == (FBM_SIZE * BLOCK_SIZE)) {
                 if (utility_write_file(fd, bs->data_blocks, BLOCK_SIZE * (BLOCK_COUNT - FBM_SIZE)) == (BLOCK_SIZE * (BLOCK_COUNT - FBM_SIZE))) {
