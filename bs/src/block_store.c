@@ -174,8 +174,8 @@ size_t block_store_export(const block_store_t *const bs, const char *const filen
     if (filename && bs && bs->fbm && bs->data_blocks) {
         const int fd = open(filename, O_WRONLY | O_TRUNC);
         if (fd != -1) {
-            if (utility_write_file(fd, bitmap_export(bs->fbm), FBM_SIZE * BLOCK_SIZE) == 0) {
-                if (utility_write_file(fd, bs->data_blocks, BLOCK_SIZE * (BLOCK_COUNT - FBM_SIZE)) == 0) {
+            if (utility_write_file(fd, bitmap_export(bs->fbm), FBM_SIZE * BLOCK_SIZE) == (FBM_SIZE * BLOCK_SIZE)) {
+                if (utility_write_file(fd, bs->data_blocks, BLOCK_SIZE * (BLOCK_COUNT - FBM_SIZE)) == (BLOCK_SIZE * (BLOCK_COUNT - FBM_SIZE))) {
                     block_store_errno = BS_OK;
                     close(fd);
                     return BLOCK_SIZE * BLOCK_COUNT;
