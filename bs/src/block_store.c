@@ -129,11 +129,11 @@ size_t block_store_release(block_store_t *const bs, const size_t block_id) {
 }
 
 // TODO: Comment
-size_t block_store_read(const block_store_t *const bs, const size_t block_id, const uint8_t *buffer, const size_t nbytes, const size_t offset) {
+size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer, const size_t nbytes, const size_t offset) {
     if (bs && bs->fbm && bs->data_blocks && BLOCKID_VALID(block_id)
             && buffer && nbytes && (nbytes + offset <= BLOCK_SIZE)) {
         // Not going to forbid reading of not-in-use blocks (but we'll log it via errno)
-        memcpy((void *)buffer, bs->data_blocks + offset, nbytes);
+        memcpy(buffer, bs->data_blocks + offset, nbytes);
         block_store_errno = bitmap_test(bs->fbm, block_id) ? BS_OK : BS_FBM_REQUEST_MISMATCH;
         return nbytes;
     }
@@ -149,7 +149,7 @@ size_t block_store_read(const block_store_t *const bs, const size_t block_id, co
 // Pretty easy, actually
 // Gotta remember to mess with the DBM!
 // Let's allow writing to blocks not marked as in use as well, but log it like with read
-size_t block_store_write(block_store_t *const bs, const size_t block_id, const uint8_t *buffer, const size_t nbytes, const size_t offset) {
+size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer, const size_t nbytes, const size_t offset) {
     block_store_errno = BS_FATAL;
     return 0;
 }

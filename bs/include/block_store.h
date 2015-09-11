@@ -102,7 +102,7 @@ size_t block_store_release(block_store_t *const bs, const size_t block_id);
 /// \param offset Block read offset
 /// \return Number of bytes read, 0 on error
 ///
-size_t block_store_read(const block_store_t *const bs, const size_t block_id, const uint8_t *buffer, const size_t nbytes, const size_t offset);
+size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer, const size_t nbytes, const size_t offset);
 
 ///
 /// Reads data from the specified buffer and writes it to the designated block and offset
@@ -113,7 +113,7 @@ size_t block_store_read(const block_store_t *const bs, const size_t block_id, co
 /// \param offset Block write offset
 /// \return Number of bytes written, 0 on error
 ///
-size_t block_store_write(block_store_t *const bs, const size_t block_id, const uint8_t *buffer, const size_t nbytes, const size_t offset);
+size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer, const size_t nbytes, const size_t offset);
 
 ///
 /// Imports BS device from the given file
