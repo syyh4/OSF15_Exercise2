@@ -387,6 +387,7 @@ void basic_tests_c() {
     assert(bs_errno == BS_OK);
     assert(res_size == BLOCK_SIZE);
     assert(memcmp(arr, bs_a->data_blocks + (BLOCK_SIZE * (blk_id - FBM_SIZE)), BLOCK_SIZE) == 0);
+    assert(bitmap_test(bs_a->dbm, blk_id));
 
     // WRITE 1
 
@@ -396,12 +397,14 @@ void basic_tests_c() {
     assert(memcmp(arr, bs_a->data_blocks + (BLOCK_SIZE * (blk_id - FBM_SIZE)), arb_size) == 0);
     assert(bs_errno == BS_OK);
     assert(res_size == (BLOCK_SIZE >> 2) + 7);
+    assert(bitmap_test(bs_a->dbm, blk_id));
 
     // WRITE 2
 
     res_size = block_store_write(bs_a, blk_id + 1, arr, BLOCK_SIZE, 0);
     assert(bs_errno == BS_FBM_REQUEST_MISMATCH);
     assert(res_size ==  BLOCK_SIZE);
+    assert(bitmap_test(bs_a->dbm, blk_id + 1));
     assert(memcmp(arr, bs_a->data_blocks + (BLOCK_SIZE * (blk_id + 1 - FBM_SIZE)), BLOCK_SIZE) == 0);
 
     // WRITE 4
