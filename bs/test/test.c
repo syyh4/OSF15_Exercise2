@@ -114,7 +114,7 @@ void basic_tests_a() {
 
     // assert dbm, fbm, and fd
 
-    assert(bs_a->fd == 0);
+    // assert(bs_a->fd == 0); Oops, V2 test
 
     for (size_t i = 0; i < FBM_SIZE; ++i) {
         assert(bitmap_test(bs_a->fbm, i));
