@@ -13,27 +13,17 @@
 // Handy macro, does what it says on the tin
 #define BLOCKID_VALID(id) ((id > (FBM_SIZE - 1)) && (id < BLOCK_COUNT))
 
-
-/*
- * PURPOSE: Read data from file and store it into the specified buffer
- * INPUTS:
- *  file id
- *  pointer to the designated buffer
- *  Number of bytes to read
- * RETURN:
- *  number of bytes read, 0 on error
- **/
+// TODO: Implement, comment, param check
+// It needs to read count bytes from fd into buffer
+// Probably a good idea to handle EINTR
+// Maybe do a block-based read? It's more efficient, but it's more complex
+// Return number of bytes read if it all worked (should always be count)
+//  and 0 on error (can only really be a major disaster file error)
+// There should be POSIX stuff for this somewhere
 size_t utility_read_file(const int fd, uint8_t *buffer, const size_t count);
 
-/*
- * PURPOSE: write data from buffer and store it into file
- * INPUTS:
- *  file id
- *  pointer to the designated buffer
- *  Number of bytes to write
- * RETURN:
- *  number of bytes written, 0 on error
- **/
+// TODO: implement, comment, param check
+// Exactly the same as read, but we're writing count from buffer to fd
 size_t utility_write_file(const int fd, const uint8_t *buffer, const size_t count);
 
 // The magical glue that holds it all together
@@ -46,13 +36,7 @@ struct block_store {
     // add an fd for V2 for better disk stuff
 };
 
-/*
- * PURPOSE: creates a new BS device
- * INPUTS:
- *  nothing
- * RETURN:
- *  Pointer to a new block storage device, NULL on error
- **/
+// TODO: Comment
 block_store_t *block_store_create() {
     block_store_t *bs = malloc(sizeof(block_store_t));
     if (bs) {
@@ -80,13 +64,7 @@ block_store_t *block_store_create() {
     return NULL;
 }
 
-/*
- * PURPOSE: Destroys the provided block storage device
- * INPUTS:
- *  pointer to a BS device
- * RETURN:
- *  nothing
- **/
+// TODO: Comment
 void block_store_destroy(block_store_t *const bs) {
     if (bs) {
         bitmap_destroy(bs->fbm);
@@ -102,13 +80,7 @@ void block_store_destroy(block_store_t *const bs) {
     block_store_errno = BS_PARAM;
 }
 
-/*
- * PURPOSE: Searches for a free block, makes it as in use, and returns the block's id
- * INPUTS:
- *  pointer to a BS device
- * RETURN:
- *  block id, 0 on error
- **/
+// TODO: Comment
 size_t block_store_allocate(block_store_t *const bs) {
     if (bs && bs->fbm) {
         size_t free_block = bitmap_ffz(bs->fbm);
@@ -142,14 +114,7 @@ size_t block_store_allocate(block_store_t *const bs) {
     }
 */
 
-/*
- * PURPOSE: Free the specified block
- * INPUTS:
- *  pointer to a BS device
- *  the specified block id
- * RETURN:
- *  block id, 0 on error
- **/
+// TODO: Comment
 size_t block_store_release(block_store_t *const bs, const size_t block_id) {
     if (bs && bs->fbm && BLOCKID_VALID(block_id)) {
         // we could clear the dirty bit, since the info is no longer in use but...
@@ -164,17 +129,7 @@ size_t block_store_release(block_store_t *const bs, const size_t block_id) {
     return 0;
 }
 
-/*
- * PURPOSE: Reads data from the specified block and offset and writes it to the designated buffer
- * INPUTS:
- *  pointer to a BS device
- *  the specified block id
- *  pointer to the designated buffer
- *  Number of bytes to read
- *  block offset
- * RETURN:
- *  number of bytes read, 0 on error
- **/
+// TODO: Comment
 size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer, const size_t nbytes, const size_t offset) {
     if (bs && bs->fbm && bs->data_blocks && BLOCKID_VALID(block_id)
             && buffer && nbytes && (nbytes + offset <= BLOCK_SIZE)) {
@@ -191,74 +146,30 @@ size_t block_store_read(const block_store_t *const bs, const size_t block_id, vo
     return 0;
 }
 
-
-/*
- * PURPOSE: Reads data from the specified buffer and writes it to the designated block and offset
- * INPUTS:
- *  pointer to a BS device
- *  the specified block id
- *  pointer to the designated buffer
- *  Number of bytes to write
- *  block offset
- * RETURN:
- *  number of bytes written, 0 on error
- **/
+// TODO: Implement, comment, param check
+// Gotta take read in nbytes from the buffer and write it to the offset of the block
+// Pretty easy, actually
+// Gotta remember to mess with the DBM!
+// Let's allow writing to blocks not marked as in use as well, but log it like with read
 size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer, const size_t nbytes, const size_t offset) {
-    if (bs && bs->fbm && bs->data_blocks && BLOCKID_VALID(block_id)
-            && buffer && nbytes && (nbytes + offset <= BLOCK_SIZE)) {
-        size_t total_offset = offset + (BLOCK_SIZE * (block_id - FBM_SIZE));
-        memcpy((void *)(bs->data_blocks + total_offset), buffer, nbytes);
-        block_store_errno = bitmap_test(bs->fbm, block_id) ? BS_OK : BS_FBM_REQUEST_MISMATCH;
-        return nbytes;
-    }
     block_store_errno = BS_FATAL;
     return 0;
 }
 
-/*
- * PURPOSE: import a BS device from file
- * INPUTS:
- *  file name
- * RETURN:
- *  Pointer to new BS device, NULL on error
- **/
+// TODO: Implement, comment, param check
+// Gotta make a new BS object and read it from the file
+// Need to remember to get the file format right, where's the FBM??
+// Since it's just loaded from file, the DBM is easy
+// Should probably make sure that the file is actually the right size
+// There should be POSIX stuff for everything file-related
+// Probably going to have a lot of resource management, better be careful
+// Lots of different errors can happen
 block_store_t *block_store_import(const char *const filename) {
-    if (filename){
-        block_store_t *bs=block_store_create;
-        if (bs != NULL){
-            const int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP);
-            if (fd != -1) {
-                bitmap_t *bitmap = bitmap_create(BLOCK_SIZE * BLOCK_COUNT);
-                if (utility_read_file(fd, bitmap->data, FBM_SIZE * BLOCK_SIZE) == (FBM_SIZE * BLOCK_SIZE)){
-                    if (utility_read_file(fd, bitmap->data, BLOCK_SIZE * (BLOCK_COUNT - FBM_SIZE)) == (BLOCK_SIZE * (BLOCK_COUNT - FBM_SIZE))) {
-                        memcpy((void *)bs->data_blocks, bitmap->data, BLOCK_SIZE * BLOCK_COUNT);
-                        block_store_errno = BS_OK;
-                        close(fd);
-                        return bs;
-                    }
-                }
-                block_store_errno = BS_FILE_IO;
-                close(fd);
-                return NULL;
-            }
-            block_store_errno = BS_FILE_ACCESS;
-            return NULL;
-        }
-        block_store_errno = BS_MEMORY;
-        return NULL;
-    }
     block_store_errno = BS_FATAL;
     return NULL;
 }
 
-/*
- * PURPOSE: Writes the entirety of the BS device to file, overwriting it if it exists
- * INPUTS:
- *  pointer to a BS device
- *  file name
- * RETURN:
- *  number of bytes written, 0 on error
- **/
+// TODO: Comment
 size_t block_store_export(const block_store_t *const bs, const char *const filename) {
     // Thankfully, this is less of a mess than import...
     // we're going to ignore dbm, we'll treat export like it's making a new copy of the drive
@@ -283,13 +194,7 @@ size_t block_store_export(const block_store_t *const bs, const char *const filen
     return 0;
 }
 
-/*
- * PURPOSE: Returns a string representing the error code given
- * INPUTS:
- *  error status code
- * RETURN:
- *  C-string with error message
- **/
+// TODO: Comment
 const char *block_store_strerror(block_store_status bs_err) {
     switch (bs_err) {
         case BS_OK:
@@ -331,29 +236,10 @@ const char *block_store_strerror(block_store_status bs_err) {
 //   I guess a new export will fix that?
 
 
-
 size_t utility_read_file(const int fd, uint8_t *buffer, const size_t count) {
-    if (fd && buffer && count){
-        size_t size = read(fd, buffer, count);
-        if (size == count){
-            return size;
-        }
-        block_store_errno = BS_FILE_IO;
-        return 0;
-    }
-    block_store_errno = BS_PARAM;
     return 0;
 }
 
 size_t utility_write_file(const int fd, const uint8_t *buffer, const size_t count) {
-    if (fd && buffer && count){
-        size_t size = write (fd, buffer, count);
-        if (size == count){
-            return size;
-        }
-        block_store_errno = BS_FILE_IO;
-        return 0;
-    }
-    block_store_errno = BS_PARAM;
     return 0;
 }
